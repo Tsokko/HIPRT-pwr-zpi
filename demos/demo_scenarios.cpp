@@ -1,4 +1,6 @@
 #include "demo_scenarios.h"
+#include <hiprt/hiprt_cpu.h>
+#include <hiprt/hiprt_hybrid.h>
 #include <iostream>
 #include <vector>
 #include <chrono>
