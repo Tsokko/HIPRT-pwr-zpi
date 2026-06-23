@@ -750,6 +750,7 @@ endif()
 
 # Fix hiprt03001 to find embree
 target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/include)
+target_compile_definitions(${HIPRT_NAME} PRIVATE HIPEW_DO_NOT_CHECK_VERSION)
 if(WIN32)
 	target_link_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win)
 	target_link_libraries(${HIPRT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win/embree4.lib)
