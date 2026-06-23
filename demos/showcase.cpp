@@ -393,30 +393,56 @@ int main(int argc, char** argv) {
         std::cout << "Zaladowano domyslny trojkat.\n";
     }
     
-    hiprtContextCreationInput hybridInput = {};
-    hybridInput.numCpuThreads = 8; 
-    hybridInput.ctxt = nullptr;
-    hybridInput.device = 0;
-    
-    hiprtContext context = nullptr;
-    
+    // Próbujemy zainicjować Orochi w showcase.exe
     bool isCpuOnly = false;
-    std::cout << "-> Inicjalizacja kontekstu (hiprtDeviceNVIDIA + CPU)...\n";
-    hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceNVIDIA);
-    if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-        std::cout << "-> Nie znaleziono NVIDII. Fallback na AMD (hiprtDeviceAMD + CPU)...\n";
-        hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceAMD);
-        if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-            std::cerr << "-> [UWAGA] Nie udalo sie utworzyc kontekstu GPU (ani AMD, ani NVIDIA).\n";
-            std::cerr << "-> Omijamy calkowicie biblioteke Orochi. Uruchamiam aplikacje w trybie PURE CPU!\n";
-            hybridInput.deviceType = hiprtDeviceCPU;
-            if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-                std::cerr << "-> [BLAD KRYTYCZNY] Nawet inicjalizacja CPU zawiodla!\n";
-                return -1;
-            }
+    oroCtx oro_ctx = nullptr;
+    oroDevice oro_device = 0;
+    
+    int oroErr = oroInitialize(ORO_API_AUTOMATIC, 0);
+    if (oroErr != 0) {
+        std::cout << "-> [UWAGA] Nie udalo sie zainicjowac biblioteki Orochi (Kod: " << oroErr << ").\n";
+        std::cout << "-> Brak sterownikow HIP/CUDA. Uruchamiam aplikacje w trybie PURE CPU!\n";
+        isCpuOnly = true;
+    } else {
+        oroInit(0);
+        if (oroDeviceGet(&oro_device, 0) != 0 || oroCtxCreate(&oro_ctx, 0, oro_device) != 0) {
+            std::cout << "-> [UWAGA] Nie mozna utworzyc kontekstu GPU z poziomu Orochi. Uruchamiam PURE CPU!\n";
             isCpuOnly = true;
         }
     }
+
+    hiprtContextCreationInput hybridInput = {};
+    hybridInput.numCpuThreads = 8; 
+    hybridInput.ctxt = isCpuOnly ? nullptr : oroGetRawCtx(oro_ctx);
+    hybridInput.device = isCpuOnly ? 0 : oroGetRawDevice(oro_device);
+    
+    hiprtContext context = nullptr;
+    
+    if (isCpuOnly) {
+        hybridInput.deviceType = hiprtDeviceCPU;
+        if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+            std::cerr << "-> [BLAD KRYTYCZNY] Inicjalizacja PURE CPU zawiodla!\n";
+            return -1;
+        }
+    } else {
+        std::cout << "-> Inicjalizacja kontekstu (hiprtDeviceNVIDIA + CPU)...\n";
+        hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceNVIDIA);
+        if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+            std::cout << "-> Nie znaleziono NVIDII. Fallback na AMD (hiprtDeviceAMD + CPU)...\n";
+            hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceAMD);
+            if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+                std::cout << "-> [UWAGA] Nie udalo sie utworzyc kontekstu GPU (ani AMD, ani NVIDIA) w hiprt.\n";
+                std::cout << "-> Uruchamiam aplikacje w trybie PURE CPU!\n";
+                isCpuOnly = true;
+                hybridInput.deviceType = hiprtDeviceCPU;
+                if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+                    std::cerr << "-> [BLAD KRYTYCZNY] Nawet inicjalizacja CPU zawiodla!\n";
+                    return -1;
+                }
+            }
+        }
+    }
+    
     std::cout << "-> Kontekst HIPRT utworzony pomyslnie. Tryb PURE CPU: " << (isCpuOnly ? "TAK" : "NIE") << "\n";
 
     hiprtGeometry geometry = nullptr;
