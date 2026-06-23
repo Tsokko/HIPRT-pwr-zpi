@@ -59,11 +59,17 @@ bool loadObjModel(const std::string& filename) {
 hiprtScene buildScene(hiprtContext context, hiprtGeometry& outGeometry) {
     hiprtTriangleMeshPrimitive mesh = {};
     oroDeviceptr d_vertices;
-    oroMallocManaged((void**)&d_vertices, g_dynamicVertices.size() * sizeof(hiprtFloat3), 1);
+    if (oroMallocManaged((void**)&d_vertices, g_dynamicVertices.size() * sizeof(hiprtFloat3), 1) != 0) {
+        std::cerr << "Blad: oroMallocManaged nie udalo sie zaalokowac pamieci dla wierzcholkow!\nUpewnij sie, ze HSA_XNACK=1 jest ustawione.\n";
+        exit(-1);
+    }
     oroMemcpyHtoD(d_vertices, g_dynamicVertices.data(), g_dynamicVertices.size() * sizeof(hiprtFloat3));
 
     oroDeviceptr d_indices;
-    oroMallocManaged((void**)&d_indices, g_dynamicIndices.size() * sizeof(uint32_t), 1);
+    if (oroMallocManaged((void**)&d_indices, g_dynamicIndices.size() * sizeof(uint32_t), 1) != 0) {
+        std::cerr << "Blad: oroMallocManaged (indeksy)!\n";
+        exit(-1);
+    }
     oroMemcpyHtoD(d_indices, g_dynamicIndices.data(), g_dynamicIndices.size() * sizeof(uint32_t));
 
     mesh.vertices = (void*)d_vertices;
@@ -87,7 +93,10 @@ hiprtScene buildScene(hiprtContext context, hiprtGeometry& outGeometry) {
     g_instances[0].geometry = outGeometry;
 
     oroDeviceptr d_instances;
-    oroMallocManaged((void**)&d_instances, 1 * sizeof(hiprtInstance), 1);
+    if (oroMallocManaged((void**)&d_instances, 1 * sizeof(hiprtInstance), 1) != 0) {
+        std::cerr << "Blad: oroMallocManaged (instancje)!\n";
+        exit(-1);
+    }
     oroMemcpyHtoD(d_instances, g_instances, 1 * sizeof(hiprtInstance));
 
     hiprtSceneBuildInput sceneInput = {};
@@ -363,13 +372,24 @@ int main(int argc, char** argv) {
     }
     
     // Inicjalizacja kopii zmiennych globalnych w showcase.exe
-    oroInitialize(ORO_API_AUTOMATIC, 0);
+    if (oroInitialize(ORO_API_AUTOMATIC, 0) != 0) {
+        std::cerr << "Blad: Nie udalo sie zainicjowac biblioteki Orochi!\n";
+        return -1;
+    }
     oroInit(0);
 
-    oroCtx oro_ctx;
-    oroDevice oro_device;
-    oroDeviceGet(&oro_device, 0);
-    oroCtxCreate(&oro_ctx, 0, oro_device);
+    oroCtx oro_ctx = nullptr;
+    oroDevice oro_device = 0;
+    
+    if (oroDeviceGet(&oro_device, 0) != 0) {
+        std::cerr << "Blad: Nie znaleziono zadnego urzadzenia GPU zgodnego z HIP/CUDA!\n";
+        return -1;
+    }
+    
+    if (oroCtxCreate(&oro_ctx, 0, oro_device) != 0) {
+        std::cerr << "Blad: Nie udalo sie utworzyc kontekstu GPU!\n";
+        return -1;
+    }
     
     hiprtContextCreationInput hybridInput = {};
     hybridInput.numCpuThreads = 8; 
