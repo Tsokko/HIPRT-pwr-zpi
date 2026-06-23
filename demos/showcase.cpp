@@ -247,7 +247,12 @@ void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint
             hiprt::hiprtGeomTraversalClosestCPU::traceBatch(context, scene, rays.data() + offset, hits.data() + offset, count);
         };
         
+        auto start = std::chrono::high_resolution_clock::now();
+        
         hiprt::hiprtTraceHybridClosest(context, scene, config, rays.data(), hits.data(), rays.size(), nullptr, gpuLaunch);
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        double timeMs = std::chrono::duration<double, std::milli>(end - start).count();
         
         std::vector<bool> isGpu(rays.size(), false);
         uint32_t gpuCount = static_cast<uint32_t>(rays.size() * frac);
@@ -255,7 +260,7 @@ void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint
         
         std::string filename = "demo3_frac_" + std::to_string(static_cast<int>(frac*100)) + ".ppm";
         saveImagePPM(filename, width, height, hits, isGpu);
-        std::cout << "Wyrenderowano klatke " << (frac*100) << "% GPU. Zapisano do " << filename << "\n";
+        std::cout << "Wyrenderowano klatke " << (frac*100) << "% GPU (Czas trace'a: " << timeMs << " ms). Zapisano do " << filename << "\n";
     }
 }
 
