@@ -362,24 +362,31 @@ int main(int argc, char** argv) {
         std::cout << "Zaladowano domyslny trojkat.\n";
     }
     
-    hiprtContextCreationInput hybridInput = {};
-    hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceNVIDIA); 
-    hybridInput.numCpuThreads = 8; 
-    
     // Inicjalizacja kopii zmiennych globalnych w showcase.exe
-    oroInitialize(ORO_API_CUDA, 0);
+    oroInitialize(ORO_API_AUTOMATIC, 0);
     oroInit(0);
 
     oroCtx oro_ctx;
     oroDevice oro_device;
     oroDeviceGet(&oro_device, 0);
     oroCtxCreate(&oro_ctx, 0, oro_device);
+    
+    hiprtContextCreationInput hybridInput = {};
+    hybridInput.numCpuThreads = 8; 
     hybridInput.ctxt = oroGetRawCtx(oro_ctx);
     hybridInput.device = oroGetRawDevice(oro_device);
+    
     hiprtContext context = nullptr;
+    
+    // Próbujemy utworzyć kontekst dla NVIDIA + CPU
+    hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceNVIDIA);
     if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-        std::cerr << "Blad kontekstu hybrydowego.\n";
-        return -1;
+        // Fallback dla sprzętu AMD + CPU (APU)
+        hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceAMD);
+        if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+            std::cerr << "Blad kontekstu hybrydowego (ani NVIDIA, ani AMD).\n";
+            return -1;
+        }
     }
 
     hiprtGeometry geometry = nullptr;
