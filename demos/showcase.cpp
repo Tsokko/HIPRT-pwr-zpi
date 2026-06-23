@@ -396,7 +396,7 @@ int main(int argc, char** argv) {
     hiprtContextCreationInput hybridInput = {};
     hybridInput.numCpuThreads = 8; 
     hybridInput.ctxt = nullptr;
-    hybridInput.device = nullptr;
+    hybridInput.device = 0;
     
     hiprtContext context = nullptr;
     
