@@ -392,6 +392,29 @@ int main(int argc, char** argv) {
             return -1;
         }
         std::cout << "Zaladowano model: " << argv[2] << " (" << g_dynamicVertices.size() << " wierzcholkow)\n";
+    } else if (demoId == 6) {
+        std::cout << "Generowanie ciezkiej sceny proceduralnej (setki tysiecy trojkatow)...\n";
+        g_dynamicVertices.clear();
+        g_dynamicIndices.clear();
+        int gridXY = 300, gridZ = 5;
+        float spacing = 0.1f;
+        for (int x = -gridXY/2; x < gridXY/2; ++x) {
+            for (int y = -gridXY/2; y < gridXY/2; ++y) {
+                for (int z = 0; z < gridZ; ++z) {
+                    float cx = x * spacing;
+                    float cy = y * spacing;
+                    float cz = -1.0f - z * spacing;
+                    uint32_t idx = g_dynamicVertices.size();
+                    g_dynamicVertices.push_back({cx, cy, cz});
+                    g_dynamicVertices.push_back({cx + 0.08f, cy, cz});
+                    g_dynamicVertices.push_back({cx, cy + 0.08f, cz});
+                    g_dynamicIndices.push_back(idx);
+                    g_dynamicIndices.push_back(idx + 1);
+                    g_dynamicIndices.push_back(idx + 2);
+                }
+            }
+        }
+        std::cout << "Wygenerowano pomyslnie " << (g_dynamicIndices.size() / 3) << " trojkatow.\n";
     } else {
         g_dynamicVertices = { {0.0f, 1.0f, -2.0f}, {-1.0f, -1.0f, -2.0f}, {1.0f, -1.0f, -2.0f} };
         g_dynamicIndices = {0, 1, 2};
@@ -459,6 +482,7 @@ int main(int argc, char** argv) {
     else if (demoId == 3) runDemo3(context, scene, camera, 800, 600, isCpuOnly);
     else if (demoId == 4) runDemo4(context, scene, camera, 800, 600, isCpuOnly);
     else if (demoId == 5) runDemo5(context, scene, camera, 800, 600);
+    else if (demoId == 6) runDemo3(context, scene, camera, 800, 600, isCpuOnly);
     else std::cout << "Nieznane ID dema.\n";
     
     hiprtDestroyScene(context, scene);
