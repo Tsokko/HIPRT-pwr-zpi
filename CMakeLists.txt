@@ -731,6 +731,9 @@ target_include_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/
 if(WIN32)
 	target_link_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win)
 	target_link_libraries(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win/embree4.lib)
+elseif(UNIX)
+	target_link_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/linux)
+	target_link_libraries(showcase PRIVATE embree4 tbb)
 endif()
 
 # Fix hiprt03001 to find embree
@@ -738,4 +741,7 @@ target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/con
 if(WIN32)
 	target_link_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win)
 	target_link_libraries(${HIPRT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win/embree4.lib)
+elseif(UNIX)
+	target_link_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/linux)
+	target_link_libraries(${HIPRT_NAME} embree4 tbb)
 endif()
