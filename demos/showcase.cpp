@@ -8,6 +8,7 @@
 #include <cmath>
 #include <string>
 #include <chrono>
+#include <thread>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "contrib/tinyobjloader/tiny_obj_loader.h"
