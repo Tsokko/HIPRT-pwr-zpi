@@ -722,7 +722,7 @@ if(HIPRTEW)
 endif()
 
 # Project: Showcase Render
-add_executable(showcase demos/showcase.cpp)
+add_executable(showcase demos/main.cpp demos/scene_utils.cpp demos/demo_scenarios.cpp)
 target_link_libraries(showcase PRIVATE hiprt03001)
 target_include_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_sources(showcase PRIVATE ${orochi_sources})
