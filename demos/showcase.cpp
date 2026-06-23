@@ -56,26 +56,35 @@ bool loadObjModel(const std::string& filename) {
     return true;
 }
 
-hiprtScene buildScene(hiprtContext context, hiprtGeometry& outGeometry) {
+hiprtScene buildScene(hiprtContext context, hiprtGeometry& outGeometry, bool isCpuOnly) {
     hiprtTriangleMeshPrimitive mesh = {};
-    oroDeviceptr d_vertices;
-    if (oroMallocManaged((void**)&d_vertices, g_dynamicVertices.size() * sizeof(hiprtFloat3), 1) != 0) {
-        std::cerr << "Blad: oroMallocManaged nie udalo sie zaalokowac pamieci dla wierzcholkow!\nUpewnij sie, ze HSA_XNACK=1 jest ustawione.\n";
-        exit(-1);
-    }
-    oroMemcpyHtoD(d_vertices, g_dynamicVertices.data(), g_dynamicVertices.size() * sizeof(hiprtFloat3));
+    oroDeviceptr d_vertices = 0;
+    oroDeviceptr d_indices = 0;
+    oroDeviceptr d_instances = 0;
 
-    oroDeviceptr d_indices;
-    if (oroMallocManaged((void**)&d_indices, g_dynamicIndices.size() * sizeof(uint32_t), 1) != 0) {
-        std::cerr << "Blad: oroMallocManaged (indeksy)!\n";
-        exit(-1);
-    }
-    oroMemcpyHtoD(d_indices, g_dynamicIndices.data(), g_dynamicIndices.size() * sizeof(uint32_t));
+    if (!isCpuOnly) {
+        if (oroMallocManaged((void**)&d_vertices, g_dynamicVertices.size() * sizeof(hiprtFloat3), 1) != 0) {
+            std::cerr << "Blad: oroMallocManaged (wierzcholki)!\n";
+            exit(-1);
+        }
+        oroMemcpyHtoD(d_vertices, g_dynamicVertices.data(), g_dynamicVertices.size() * sizeof(hiprtFloat3));
 
-    mesh.vertices = (void*)d_vertices;
+        if (oroMallocManaged((void**)&d_indices, g_dynamicIndices.size() * sizeof(uint32_t), 1) != 0) {
+            std::cerr << "Blad: oroMallocManaged (indeksy)!\n";
+            exit(-1);
+        }
+        oroMemcpyHtoD(d_indices, g_dynamicIndices.data(), g_dynamicIndices.size() * sizeof(uint32_t));
+
+        mesh.vertices = (void*)d_vertices;
+        mesh.triangleIndices = (void*)d_indices;
+    } else {
+        // Tryb PURE CPU: korzystamy bezpośrednio ze wskaźników systemowych
+        mesh.vertices = (void*)g_dynamicVertices.data();
+        mesh.triangleIndices = (void*)g_dynamicIndices.data();
+    }
+
     mesh.vertexCount = static_cast<uint32_t>(g_dynamicVertices.size());
     mesh.vertexStride = sizeof(hiprtFloat3);
-    mesh.triangleIndices = (void*)d_indices;
     mesh.triangleCount = static_cast<uint32_t>(g_dynamicIndices.size() / 3);
     mesh.triangleStride = 3 * sizeof(uint32_t);
 
@@ -92,18 +101,21 @@ hiprtScene buildScene(hiprtContext context, hiprtGeometry& outGeometry) {
     g_instances[0].type = hiprtInstanceTypeGeometry;
     g_instances[0].geometry = outGeometry;
 
-    oroDeviceptr d_instances;
-    if (oroMallocManaged((void**)&d_instances, 1 * sizeof(hiprtInstance), 1) != 0) {
-        std::cerr << "Blad: oroMallocManaged (instancje)!\n";
-        exit(-1);
-    }
-    oroMemcpyHtoD(d_instances, g_instances, 1 * sizeof(hiprtInstance));
-
     hiprtSceneBuildInput sceneInput = {};
     sceneInput.instanceCount = 1;
     sceneInput.instanceMasks = nullptr;
     sceneInput.instanceTransformHeaders = nullptr;
-    sceneInput.instances = (hiprtInstance*)d_instances;
+
+    if (!isCpuOnly) {
+        if (oroMallocManaged((void**)&d_instances, 1 * sizeof(hiprtInstance), 1) != 0) {
+            std::cerr << "Blad: oroMallocManaged (instancje)!\n";
+            exit(-1);
+        }
+        oroMemcpyHtoD(d_instances, g_instances, 1 * sizeof(hiprtInstance));
+        sceneInput.instances = (hiprtInstance*)d_instances;
+    } else {
+        sceneInput.instances = g_instances;
+    }
 
     hiprtScene scene = nullptr;
     if (hiprtCreateScene(context, sceneInput, buildOptions, scene) != hiprtSuccess) return nullptr;
@@ -201,7 +213,7 @@ void runDemo2(hiprtContext context, hiprtScene scene, const Camera& camera, uint
 // -------------------------------------------------------------
 // DEMO 3: Suwak Mocy
 // -------------------------------------------------------------
-void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint32_t width, uint32_t height) {
+void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint32_t width, uint32_t height, bool isCpuOnly) {
     std::cout << "\n=== DEMO 3: Suwak Mocy (Load Balancing) ===\n";
     
     std::vector<hiprtRay> rays(width * height);
@@ -222,6 +234,12 @@ void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint
     
     for (int i = 0; i < 5; ++i) {
         float frac = fractions[i];
+        // Jeśli PURE CPU to wymuszamy 0% GPU
+        if (isCpuOnly && frac > 0.0f) {
+            std::cout << "Pominiecie ramki " << (frac*100) << "% GPU (dzialamy w trybie PURE CPU)\n";
+            continue;
+        }
+
         std::vector<hiprtHit> hits(rays.size());
         
         hiprt::hiprtHybridTraceConfig config; config.gpuFraction = frac;
@@ -244,8 +262,12 @@ void runDemo3(hiprtContext context, hiprtScene scene, const Camera& camera, uint
 // -------------------------------------------------------------
 // DEMO 4: Szachownica
 // -------------------------------------------------------------
-void runDemo4(hiprtContext context, hiprtScene scene, const Camera& camera, uint32_t width, uint32_t height) {
+void runDemo4(hiprtContext context, hiprtScene scene, const Camera& camera, uint32_t width, uint32_t height, bool isCpuOnly) {
     std::cout << "\n=== DEMO 4: Przeplatanka Szachownicy ===\n";
+    if (isCpuOnly) {
+        std::cout << "[UWAGA] Zignorowano przeplatanke (dzialamy w trybie PURE CPU).\n";
+        return;
+    }
     
     std::vector<hiprtRay> raysOriginal(width * height);
     float aspect = (float)width / (float)height;
@@ -371,52 +393,40 @@ int main(int argc, char** argv) {
         std::cout << "Zaladowano domyslny trojkat.\n";
     }
     
-    // Inicjalizacja kopii zmiennych globalnych w showcase.exe
-    if (oroInitialize(ORO_API_AUTOMATIC, 0) != 0) {
-        std::cerr << "Blad: Nie udalo sie zainicjowac biblioteki Orochi!\n";
-        return -1;
-    }
-    oroInit(0);
-
-    oroCtx oro_ctx = nullptr;
-    oroDevice oro_device = 0;
-    
-    if (oroDeviceGet(&oro_device, 0) != 0) {
-        std::cerr << "Blad: Nie znaleziono zadnego urzadzenia GPU zgodnego z HIP/CUDA!\n";
-        return -1;
-    }
-    
-    if (oroCtxCreate(&oro_ctx, 0, oro_device) != 0) {
-        std::cerr << "Blad: Nie udalo sie utworzyc kontekstu GPU!\n";
-        return -1;
-    }
-    
     hiprtContextCreationInput hybridInput = {};
     hybridInput.numCpuThreads = 8; 
-    hybridInput.ctxt = oroGetRawCtx(oro_ctx);
-    hybridInput.device = oroGetRawDevice(oro_device);
+    hybridInput.ctxt = nullptr;
+    hybridInput.device = nullptr;
     
     hiprtContext context = nullptr;
     
-    // Próbujemy utworzyć kontekst dla NVIDIA + CPU
+    bool isCpuOnly = false;
+    std::cout << "-> Inicjalizacja kontekstu (hiprtDeviceNVIDIA + CPU)...\n";
     hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceNVIDIA);
     if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-        // Fallback dla sprzętu AMD + CPU (APU)
+        std::cout << "-> Nie znaleziono NVIDII. Fallback na AMD (hiprtDeviceAMD + CPU)...\n";
         hybridInput.deviceType = (hiprtDeviceType)(hiprtDeviceCPU | hiprtDeviceAMD);
         if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
-            std::cerr << "Blad kontekstu hybrydowego (ani NVIDIA, ani AMD).\n";
-            return -1;
+            std::cerr << "-> [UWAGA] Nie udalo sie utworzyc kontekstu GPU (ani AMD, ani NVIDIA).\n";
+            std::cerr << "-> Omijamy calkowicie biblioteke Orochi. Uruchamiam aplikacje w trybie PURE CPU!\n";
+            hybridInput.deviceType = hiprtDeviceCPU;
+            if (hiprtCreateContext(HIPRT_API_VERSION, hybridInput, context) != hiprtSuccess) {
+                std::cerr << "-> [BLAD KRYTYCZNY] Nawet inicjalizacja CPU zawiodla!\n";
+                return -1;
+            }
+            isCpuOnly = true;
         }
     }
+    std::cout << "-> Kontekst HIPRT utworzony pomyslnie. Tryb PURE CPU: " << (isCpuOnly ? "TAK" : "NIE") << "\n";
 
     hiprtGeometry geometry = nullptr;
-    hiprtScene scene = buildScene(context, geometry);
+    hiprtScene scene = buildScene(context, geometry, isCpuOnly);
 
     Camera camera = {{0.0f, 0.0f, 2.5f}, {0.0f, 0.0f, -1.0f}};
     
     if (demoId == 2) runDemo2(context, scene, camera, 800, 600);
-    else if (demoId == 3) runDemo3(context, scene, camera, 800, 600);
-    else if (demoId == 4) runDemo4(context, scene, camera, 800, 600);
+    else if (demoId == 3) runDemo3(context, scene, camera, 800, 600, isCpuOnly);
+    else if (demoId == 4) runDemo4(context, scene, camera, 800, 600, isCpuOnly);
     else if (demoId == 5) runDemo5(context, scene, camera, 800, 600);
     else std::cout << "Nieznane ID dema.\n";
     
