@@ -23,6 +23,7 @@
 
 
 #include <Orochi/Orochi.h>
+#include <iostream>
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
@@ -843,6 +844,9 @@ int oroInitialize( oroApi api, oroU32 flags,
 	s_api = api;
 	int e = 0;
 	s_loadedApis = 0;
+
+	if( api == ORO_API_AUTOMATIC )
+		api = (oroApi)(ORO_API_CUDA | ORO_API_HIP);
 
 	if( api & ORO_API_CUDA )
 	{
