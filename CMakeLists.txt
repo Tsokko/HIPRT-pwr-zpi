@@ -591,6 +591,9 @@ if(WIN32)
 	target_link_libraries(${HIPRT_NAME} version)
 endif()
 
+if(WIN32 AND cuda_path)
+	target_link_libraries(${HIPRT_NAME} "${cuda_path}/lib/x64/cuda.lib" "${cuda_path}/lib/x64/cudart.lib")
+endif()
 
 target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/Orochi)
