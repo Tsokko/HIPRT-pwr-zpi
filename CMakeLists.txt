@@ -748,6 +748,34 @@ if(UNIX)
     target_link_libraries(hip_only PRIVATE amdhip64)
 endif()
 
+# Szukamy biblioteki SDL2
+# Szukamy biblioteki SDL2
+find_package(SDL2 REQUIRED)
+
+# Dodajemy nowy plik wykonywalny dema
+add_executable(demo_advanced demos/demo_adv_v2.cpp)
+
+# Dodajemy wszystkie niezbędne foldery z nagłówkami (w tym Orochi oraz Embree)
+target_include_directories(demo_advanced PRIVATE 
+    ${SDL2_INCLUDE_DIRS} 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/Orochi
+    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/include
+)
+
+# Konfiguracja dla systemów UNIX (Linux) - wskazanie folderu z plikami bibliotek Embree
+if(UNIX)
+    target_link_directories(demo_advanced PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/linux)
+endif()
+
+# Linkowanie głównej biblioteki HIPRT, SDL2 oraz wewnętrznych zależności HIPRT (Embree, TBB)
+target_link_libraries(demo_advanced PRIVATE ${HIPRT_NAME} ${SDL2_LIBRARIES} embree4 tbb)
+
+# Dodatkowe flagi systemowe dla Linuxa
+if(UNIX)
+    target_link_libraries(demo_advanced PRIVATE pthread dl)
+endif()
+
 # Fix hiprt03001 to find embree
 target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/include)
 target_compile_definitions(${HIPRT_NAME} PRIVATE HIPEW_DO_NOT_CHECK_VERSION)
