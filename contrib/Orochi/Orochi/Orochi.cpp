@@ -1158,7 +1158,11 @@ oroError OROAPI oroCtxCreate(oroCtx* pctx, unsigned int flags, oroDevice dev)
 	if( s_api & ORO_API_CUDADRIVER ) 
 	{
 		#ifdef OROCHI_ENABLE_CUEW
+		#if CUDA_VERSION >= 13000
+		CU4ORO::CUresult e = CU4ORO::cuCtxCreate( oroCtx2cu( pctx ), nullptr, flags, d.getDevice() );
+		#else
 		CU4ORO::CUresult e = CU4ORO::cuCtxCreate( oroCtx2cu( pctx ), flags, d.getDevice() );
+		#endif
 		if ( e != CU4ORO::CUDA_SUCCESS )
 			return cu2oro(e);
 		#endif
