@@ -739,17 +739,6 @@ elseif(UNIX)
 	target_link_libraries(showcase PRIVATE embree4 tbb)
 endif()
 
-# Project: Native HIP Test (GPU Only)
-add_executable(hip_only demos/hip_only.cpp)
-target_link_libraries(hip_only PRIVATE hiprt03001)
-target_include_directories(hip_only PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} /opt/rocm/include)
-target_compile_definitions(hip_only PRIVATE __HIP_PLATFORM_AMD__)
-if(UNIX)
-    target_link_directories(hip_only PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/linux)
-    target_link_libraries(hip_only PRIVATE dl pthread)
-    target_link_directories(hip_only PRIVATE /opt/rocm/lib)
-    target_link_libraries(hip_only PRIVATE amdhip64)
-endif()
 
 # Fix hiprt03001 to find embree
 target_include_directories(${HIPRT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/include)
