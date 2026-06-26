@@ -724,20 +724,6 @@ if(HIPRTEW)
 	target_compile_definitions(hiprtewtest PRIVATE GTEST_HAS_TR1_TUPLE=0)
 endif()
 
-# Project: Showcase Render
-add_executable(showcase demos/main.cpp demos/scene_utils.cpp demos/demo_scenarios.cpp)
-target_link_libraries(showcase PRIVATE hiprt03001)
-target_include_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_sources(showcase PRIVATE ${orochi_sources})
-target_include_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/Orochi)
-target_include_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/include)
-if(WIN32)
-	target_link_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win)
-	target_link_libraries(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/win/embree4.lib)
-elseif(UNIX)
-	target_link_directories(showcase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/contrib/embree/linux)
-	target_link_libraries(showcase PRIVATE embree4 tbb)
-endif()
 
 
 # Fix hiprt03001 to find embree
