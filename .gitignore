@@ -18,4 +18,3 @@ PUBLIC_OUT/
 hiprt/impl/bvh_build_array.h
 scripts/bitcodes/__pycache__/
 test/common/meshes/lfs
-docs/
